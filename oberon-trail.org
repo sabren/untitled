@@ -1,0 +1,199 @@
+
+* NOTE . Abstract
+:PROPERTIES:
+:TS:       <2013-07-01 04:56PM>
+:ID:       8q65jkd1t5g0
+:END:
+
+Writing parsers by hand is not difficult once you learn how to do it, but it's tedious, and the result of your effort is an opaque program. All you can really do with the result is run it. If you want to make it do something like compile or pretty print code in the language, then you need to find a way to add instructions to your parser - perhaps by adding generic code to trigger events or invoke callback routines, or perhaps just by editing the code directly.[fn:1]
+
+When programmers get tired of building parsers, they start writing parser generators instead. In procedural languages, the typical approach is to define a metagrammar and parse that instead (yielding tools like ~lex~, ~yacc~, and ~antlr~). In the functional world, /parser combinators/ have become popular. These basically let you compose small, primitive parsers into larger ones using higher order functions.
+
+Both approaches tend to focus on building user-friendly representations of the parsed language, both when constructing the grammar and when using the results of the generated parser. But in both cases, the representation of the grammar itself is opaque.
+
+The present work combines ideas from both approaches, but with a focus on making the /grammar itself/ a concrete object. We present combinators to build a transparent graph representation of an individual grammar, which can then be transformed and modified to produce various language-specific tools.
+
+
+* NOTE how i got to this point
+:PROPERTIES:
+:TS:       <2013-07-01 04:22PM>
+:ID:       02a3b1c1t5g0
+:END:
+
+** step 1: stared with simple idea
+
+I started out writing something like this:
+
+#+BEGIN_SRC python
+
+[ 'MODULE', 'END', '.' ] 
+
+#+END_SRC
+
+Which is just data and doesn't do anything, but it's how I saw the entry point to the oberon grammar in my mind.
+
+I was picturing a little program that would scan input until it saw the keyword ~MODULE~ and then immediately push ~END~ and ~.~ onto a stack. This is basically what a recursive descent parser does, except normally the stack is the programming language's call stack, what actually gets pushed is an instruction pointer's position within a sequence of compiled instructions.
+
+Anyway, this was just a rough initial idea. It does nothing of course, and it's not even the right grammar to use. The 'stop' token isn't ~END~ but ~.~ (the period character). A better representation might have been this:
+
+#+BEGIN_SRC python
+  
+rule['start'] = [ 'MODULE', (), '.' ]
+  
+#+END_SRC
+
+
+** step 2: switched to strings, began listing keywords
+
+I figured I could use =split()= to generate lists like this for me, so I deleted the little code I had so far and started writing something like:
+
+#+BEGIN_SRC python
+
+"""
+module <iden> ;
+begin
+end .
+"""
+
+#+END_SRC
+
+After a while I had a string that looked vaguely like a pascal or oberon program:
+
+#+BEGIN_SRC python
+  
+  """
+  module ;
+  uses
+  
+  var :
+  type =
+  pointer to array of record ,
+  end
+  const
+  
+  procedure * ( : )
+    begin
+      unless
+      if not and or but xor ( > < >= <= = # ) then else elif end
+      case of | : ;
+      for := to by while do
+      repeat until
+    end
+  
+  begin
+  end .
+  """
+  
+#+END_SRC
+
+I was very consciously looking for a representation that looked like the language to compile, /not/ a traditonal BNF-style representation of the grammar. (For one thing, I already had that: Niklaus Wirth provides EBNF for all his languages, and I had already translated the Oberon-07 grammar to ANTLR.)
+
+The form I eventually came up with basically just inlines the first usage of each grammar rule and tags it with a name. Previously (some weeks before) I hade even mocked up a grammar that tried to show the language 'by example' and could serve as both a template and a parser, but here I was just listing tokens.
+
+
+**  hand-building the data structure
+
+So far, I was only looking at keywords (these are oberon keywords, but lowercased, and I threw in some imaginary ones that I wanted for retro pascal).
+
+What's missing is the ability to match an identifier, which isn't a fixed string but rather a pattern that can be described by a regular expression:
+
+#+BEGIN_SRC python
+
+iden = '[a-zA-Z][a-zA-Z0-9]+'
+
+#+END_SRC
+
+Now I needed some way to mark that as being a regular expression, preferably without writing a parser. I'd rather just leverage an existing parser. One thought might be to just compile the above expression with python's =re= module. But if I'm just going to split this string into a list of strings anyway, (so that I can put the compiled object into the list), then I might as well just use a list to represent the sequence in the first place.
+
+In python, we could represent this as:
+
+#+BEGIN_SRC python
+  
+import string
+  
+rep = lambda pattern : ('rep', pattern) # for 'repeat'
+iden = [set(string.letters), 
+        rep(set(string.letters) + set(string.digits))]
+  
+#+END_SRC
+
+I didn't actually write the above code until just now, but I had something like that in mind.  had   out something like that later, so in the meantime I just left it as a string and wrote something along the lines of:
+
+#+BEGIN_SRC python
+
+['MODULE', r'[a-z][a-zA-Z]+', ';',
+ 'BEGIN',
+ 'END', '.' ]
+
+#+END_SRC
+
+But the next thing in an oberon module is a list of imports, and these are identifiers separated by commas:
+
+#+BEGIN_SRC python
+
+['MODULE', r'[a-z][a-zA-Z]+', ';',
+ 'IMPORT', sep(r'[a-z][a-zA-Z]+', ','), 
+ 'BEGIN',
+ 'END', '.' ]
+
+#+END_SRC
+
+
+In fact, lots of things repeat in a grammar, which is why we make named rules. I had used functions called =def= and =ref= when I first mocked up my combinators in pascal, =def= for /defining/ a rule and =ref= for referring back to it, but since =def= is a python keyword, i changed ito to =dfn=:
+
+#+BEGIN_SRC python
+
+['MODULE', dfn('iden', r'[a-z][a-zA-Z]+'),
+ 'IMPORT', sep(ref('iden'), ','),
+ # ...
+]
+
+#+END_SRC
+
+From there, I just kept building things. The nekt token can either be a comment, which I was ignoring for the time being, planning to implement a rule up front to filter them out along with whitespace, or one of the keywords: =TYPE=, =VAR=, =CONST=, =PROCEDURE=, or =BEGIN=. In the Oberon-07 grammar, these are required to be in a specific order, but I prefer the pascal style approach, where you can mix and match (though =BEGIN= is always the last one.)
+
+I was already using lists to represent sequences, so I figured a dict was a good way to represent choice:
+
+#+BEGIN_SRC python
+
+___ = None
+
+# ...
+[ { 'CONST' : ___, 'TYPE' : ___ , 'VAR' : ___ , 'PROCEDURE': ___ }, 'BEGIN', [ ___ ], 'END' ]
+# ...
+
+#+END_SRC
+
+Then I just started filling in the blanks.
+
+As I started filling in the grammar for constants, I started thinking about adding some combinators to do simple side effects, like adding the matched string to a dictionary and checking whether the constant was already defined. Of course, this is completely outside the realm of parsing syntax and starts getting into semantics (considering what the syntax actually /means/).
+
+The nice thing about using a concrete data structure is that you can just add more stuff to it, and as long as there's a way to distinguish the parts you care about from the parts you don't, you can just take what you want. So it's okay to have extra stuff and even okay to gloss over stuff.
+
+For example, I continued to work through the tree, filling in the syntax for declaring each kind of identifier, and then I filled in rules for the basic block structure of statements, but when it came to describing expressions, I just added a =todo= node.
+
+Keep in mind that there is not yet any kind of implementation here.
+
+
+
+['MODULE', None, 'IMPORT', None, None, None, '.']
+
+
+
+* TODO
+:PROPERTIES:
+:TS:       <2013-07-01 08:33PM>
+:ID:       owzj7390u5g0
+:END:
+
+- In writing this paper I searched for "grammar combinators" and found http://projects.haskell.org/grammar-combinators/index.html
+  I decided not to read it until I'm done, then go back and compare notes.
+  
+
+* Footnotes
+
+[fn:1] Adding callbacks to a generic recursive descent parser seems like a very nice application of aspect-oriented-programming, and a lot more interesting than the typical logging example you generally hear with AOP.
+
+
+
+
