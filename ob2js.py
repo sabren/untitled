@@ -14,10 +14,10 @@ def ref(name):pass
 def opt(ptn):pass
 def rep(ptn): pass
 def maybe_some(ptn): pass
-def known_type: pass
-def initial_values: pass
-def new_def: ref('iden')
-def const_expr: pass
+def known_type(): pass
+def initial_values(): pass
+def new_def(): ref('iden')
+def const_expr(): pass
 def new(kind, pattern): pass
 def hold(kind): pass
 def drop(kind):pass
@@ -40,14 +40,14 @@ dfn('<vars>', [sep(new('@var', ref('iden')), by=','),
 # entire parser out by hand. basically it's just a big data structure
 # that defines the grammar for oberon/retro pascal
 
-dfn('<start>',
+grammar =\
 ['MODULE', hold(new('@module', dfn('iden', r'[a-z][a-zA-Z]+'))),
  'IMPORT', sep(ref('iden'), ','),
  dfn('<declarations>', [maybe_some({
      'CONST': rep([
          new('@const', ref('iden')), '=', const_expr, ';']),
      'TYPE' : rep([
-         hold(new('@type', ref('iden'))), '=', dfn('<type>', {
+         hold(new('@type', ref('iden'))), '=', dfn('<type>', alt(
              other('@type'),
              ['array', 'of', other('@type')],
              ['record', opt(['(', known('@type'), ')']),
@@ -59,9 +59,8 @@ dfn('<start>',
                        sep([opt({'VAR', 'CONST'}), ref('<vars>')], by=';'),
                    ')'])]),
                  opt([':', known('@type')])
-             ])],
-         drop('@type')
-         }), ';']),
+             ])]
+         )), drop('@type'), ';']),
      'VAR': rep([ref('<vars>'), opt(['=', initial_values])]),
      'PROCEDURE': [opt('*'), hold(new('@proc', ref('iden'))),
                    scope([
@@ -73,7 +72,7 @@ dfn('<start>',
            opt(['ELSE', ref('<stmts>')]),
            'END'],
     'FOR': [known('@var'), ':=', const_expr, 'TO', const_expr,
-             opt([{'WHILE', 'UNTIL'}, condition]), # retro pascal extension
+             opt([{'WHILE', 'UNTIL'}, condition]),  # retro pascal extension
              'DO',
                 ref('<stmts>'),
             'END'],
@@ -92,53 +91,19 @@ dfn('<start>',
     [dfn('lhs',
         [known('iden'),
         {
-            '.': [ todo('attributes') ],
-            '[': [ todo('subscripts') ],
+            '.': [todo('attributes')],
+            '[': [ref('expr')],
         }
         ]),
         #--
         {
-            ':=': dfn('<expr>', [ todo('expressions')]),
+            ':=': dfn('<expr>', [todo('expressions')]),
             '(' : [sep(ref('<expr>'), ','), ')']
         }
    ]
  )), by=';')),
- 'END']), same('iden'), '.'])
+ 'END']), same('iden'), '.']
 
-
-
-
-# this was what i started with, when it turned into the above :)
-keywords =\
-    """
-    module ;
-    uses
-
-    var :
-    type =
-      pointer to array of record ,
-      end
-    const
-
-    procedure * ( : )
-      begin
-
-        unless
-        if not and or but xor ( > < >= <= = # ) then else elif end
-        case of | : ;
-        for := to by while do
-        repeat until
-      end
-
-    begin
-    end
-    """.split()
-
-
-tokens = dict(enumerate(
-    """
-    <$eof>
-    """.split()))
 
 
 class Ob2Js(object):
