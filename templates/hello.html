@@ -2,25 +2,40 @@
 <html>
 <head>
   <title>minrelite</title>
+  <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.2.0/pure-min.css">
+  <link rel="stylesheet" href="/static/minrelite-yui.css">
+  <link rel="stylesheet" href="/static/minrelite.css">
   <script src="http://yui.yahooapis.com/3.10.3/build/yui/yui-min.js"></script>
 </head>
-<body>
+<body class="yui3-skin-mrl">
 
-<nav>
-  (navbar)
+<nav id="context" class="pure-u-1-5">
+
 </nav>
 
-<h1>minrelite</h1>
+<header class="pure-u1">
+  <div class="pure-u-1">
+    <h1>minrelite</h1>
+  </div>
+  <nav class="pure-menu pure-menu-open pure-menu-fixed pure-menu-horizontal">
+    <ul>
+      <li><a href="#">tables</a></li>
+      <li><a href="#">views</a></li>
+    </ul>
+  </nav>
+</header>
+
+
 
 
 {# data table widget #}
-<div class="example yui3-skin-sam"> <!-- You need this skin class -->
+<div class="pure-u-4-5">
   <div id="simple"></div>
 
   <div id="labels"></div>
 </div>
 
-<footer>
+<footer class="pure-u">
   <script src="/static/datasheet.js"></script>
 </footer>
 

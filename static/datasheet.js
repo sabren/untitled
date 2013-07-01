@@ -1,3 +1,5 @@
+
+
 YUI().use("datatable", function (Y) {
 
   // A table from data with keys that work fine as column names
@@ -10,9 +12,10 @@ YUI().use("datatable", function (Y) {
     ],
     summary: "Price sheet for inventory parts",
     caption: "Example table with simple columns",
-    sortable: ["id", "name", "price"]
+    sortable: ["id", "name", "price"],
+    className:"pure-table-horizontal"
   });
 
-  simple.render("#simple");
+  simple.render("#simple" );
 
 });
