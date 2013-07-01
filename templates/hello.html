@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Tutorial: Hello Dojo!</title>
+</head>
+<body>
+
+<h1 id="greeting">Hello</h1>
+
+
+
+<!-- load Dojo -->
+<script>
+    // http://dojotoolkit.org/documentation/tutorials/1.9/cdn/
+    // Instead of using data-dojo-config, we’re creating a dojoConfig
+    // object *before* we load dojo.js; they’re functionally identical,
+    // it's just easier to read this approach with a larger configuration.
+    var staticPath = location.pathname.replace(/\/[^/]*$/, '');
+    var dojoConfig = {
+        async: true,
+        // This code registers the correct location of the "demo"
+        // package so we can load Dojo from the CDN whilst still
+        // being able to load local modules
+        packages: [
+            { name: "demo", location: staticPath },
+            { name: "demo", location: staticPath }]
+        };
+</script>
+<script src="/static/js/dojo/dojo.js" data-dojo-config="async: true"></script>
+<script src="/static/js/dojo-init.js"></script>
+
+</body>
+</html>
