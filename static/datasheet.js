@@ -3,13 +3,14 @@
  http://stlsmiths.github.io/blunderalong/dt_cellinline.html
  */
 
+
 YUI({ gallery: 'gallery-2013.01.16-21-05'}).use(
     "datatable", 'gallery-datatable-celleditor-inline',
     "gallery-datatable-formatters",'autocomplete-plugin',
 function (Y) {
 
   // A table from data with keys that work fine as column names
-  var simple = new Y.DataTable({
+  myTable = new Y.DataTable({
     columns: [
       { key: "id", label:'#', editable:false },
       { key: "name", editor:'inline' },
@@ -27,6 +28,12 @@ function (Y) {
     defaultEditor: 'inline'
   });
 
-  simple.render("#simple" );
+  myTable.render("#simple" );
 
 });
+
+
+var counter = 0;
+function addRow() {
+  myTable.addRow({ id: "dyn_" + counter++, name: "",   price: "" })
+}
